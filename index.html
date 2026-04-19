@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ultimate GPA Calculator</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: white;
+}
+
+.container {
+  max-width: 800px;
+  margin: auto;
+  padding: 20px;
+}
+
+.card {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 20px;
+}
+
+h2 { text-align: center; }
+
+.course {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+input, select {
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+}
+
+button {
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.add { background: #22c55e; }
+.remove { background: #ef4444; }
+.calc { background: #3b82f6; width: 100%; }
+.reset { background: #f59e0b; width: 100%; margin-top:10px;}
+
+#result, #cgpa { text-align: center; margin-top: 10px; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="card">
+    <h2>🎓 Ultimate GPA Calculator</h2>
+
+    <div id="courses"></div>
+
+    <button class="add" onclick="addCourse()">➕ Add Course</button>
+    <button class="calc" onclick="calculateGPA()">Calculate GPA</button>
+
+    <h3 id="result"></h3>
+
+    <button onclick="saveSemester()">💾 Save Semester</button>
+    <button class="reset" onclick="resetAll()">🧹 Reset All</button>
+
+    <h3 id="cgpa"></h3>
+  </div>
+
+  <div class="card">
+    <canvas id="chart"></canvas>
+  </div>
+
+</div>
+
+<script>
+let chart;
+
+function addCourse(name="", grade="5", units="") {
+  const div = document.createElement("div");
+  div.classList.add("course");
+
+  div.innerHTML = `
+    <input placeholder="Course" value="${name}">
+    <select>
+      <option value="5">A</option>
+      <option value="4">B</option>
+      <option value="3">C</option>
+      <option value="2">D</option>
+      <option value="1">E</option>
+      <option value="0">F</option>
+    </select>
+    <input type="number" placeholder="Units" value="${units}">
+    <button class="remove" onclick="this.parentElement.remove(); saveCourses()">❌</button>
+  `;
+
+  div.children[1].value = grade;
+  document.getElementById("courses").appendChild(div);
+  saveCourses();
+}
+
+function calculateGPA() {
+  let totalPoints = 0, totalUnits = 0;
+
+  document.querySelectorAll(".course").forEach(row => {
+    let g = +row.children[1].value;
+    let u = +row.children[2].value;
+
+    if (u > 0) {
+      totalPoints += g * u;
+      totalUnits += u;
+    }
+  });
+
+  if (totalUnits === 0) return;
+
+  let gpa = totalPoints / totalUnits;
+
+  let remark = gpa >= 4.5 ? "🏆 First Class" :
+               gpa >= 3.5 ? "🎯 Second Upper" :
+               gpa >= 2.5 ? "👍 Second Lower" :
+               "⚠️ Pass";
+
+  document.getElementById("result").innerText =
+    GPA: ${gpa.toFixed(2)} (${remark});
+
+  return gpa;
+}
+
+function saveSemester() {
+  let gpa = calculateGPA();
+  if (!gpa) return;
+
+  let semesters = JSON.parse(localStorage.getItem("semesters")) || [];
+  semesters.push(gpa);
+
+  localStorage.setItem("semesters", JSON.stringify(semesters));
+
+  updateCGPA();
+  drawChart();
+}
+
+function updateCGPA() {
+  let semesters = JSON.parse(localStorage.getItem("semesters")) || [];
+  if (semesters.length === 0) return;
+
+  let avg = semesters.reduce((a,b)=>a+b,0)/semesters.length;
+
+  document.getElementById("cgpa").innerText =
+    CGPA: ${avg.toFixed(2)} (Semesters: ${semesters.length});
+}
+
+function drawChart() {
+  let data = JSON.parse(localStorage.getItem("semesters")) || [];
+
+  const ctx = document.getElementById("chart");
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map((_,i)=>"Sem "+(i+1)),
+      datasets: [{
+        label: 'GPA Trend',
+        data: data,
+        borderWidth: 2,
+        tension: 0.3
+      }]
+    }
+  });
+}
+
+function saveCourses() {
+  const courses = [];
+  document.querySelectorAll(".course").forEach(row => {
+    courses.push({
+      name: row.children[0].value,
+      grade: row.children[1].value,
+      units: row.children[2].value
+    });
+  });
+  localStorage.setItem("courses", JSON.stringify(courses));
+}
+
+function loadCourses() {
+  const saved = JSON.parse(localStorage.getItem("courses")) || [];
+  saved.forEach(c => addCourse(c.name, c.grade, c.units));
+}
+
+function resetAll() {
+  localStorage.clear();
+  location.reload();
+}
+
+loadCourses();
+updateCGPA();
+drawChart();
+</script>
+
+</body>
+</html>
